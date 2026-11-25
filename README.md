@@ -59,6 +59,8 @@ recreate a store (destroys its orders).
 
 ## Deploy (Lightsail/EC2 1 GB)
 
+Step-by-step AWS EC2 guide (launch settings, Elastic IP, sslip.io, backups, troubleshooting): see [`DEPLOY.md`](DEPLOY.md).
+
 1. Install Docker + compose plugin, clone the repo to `/opt/biteflow`, `cp .env.example .env` and fill it.
 2. DNS: `A yourdomain.com` and `A *.yourdomain.com` → the instance IP.
 3. `./deploy.sh` (Caddy issues certs on demand, only for existing stores).
