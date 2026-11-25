@@ -1,0 +1,74 @@
+{
+  "Café": {
+    "tagline": "Coffee, pastries & all-day breakfast",
+    "categories": [
+      {"name": "Coffee", "items": [
+        {"name": "Ube Spanish Latte", "description": "Espresso, condensed milk, ube", "price": 145, "tags": ["best_seller"], "allergens": ["milk"],
+         "variants": [{"name": "Hot 12oz", "add": 0}, {"name": "Iced 16oz", "add": 20}],
+         "modifier_groups": [{"name": "Milk", "min": 1, "max": 1, "options": [{"name": "Fresh milk", "add": 0}, {"name": "Oat milk", "add": 30}]}]},
+        {"name": "Iced Americano", "description": "Double shot, 16oz", "price": 110},
+        {"name": "Salted Caramel Macchiato", "description": "House caramel, sea salt foam", "price": 165, "tags": ["new"], "allergens": ["milk"]}
+      ]},
+      {"name": "Pastries", "items": [
+        {"name": "Ensaymada", "description": "Baked this morning", "price": 75, "daily_portions": 24, "allergens": ["milk", "egg", "wheat"]},
+        {"name": "Banana Bread", "description": "Thick slice, walnuts", "price": 95, "allergens": ["tree nuts", "wheat", "egg"]}
+      ]}
+    ]
+  },
+  "Milk tea": {
+    "tagline": "Milk tea, fruit tea & cheese foam",
+    "categories": [
+      {"name": "Milk Tea", "items": [
+        {"name": "Brown Sugar Boba", "description": "Tiger stripes, fresh milk", "price": 130, "tags": ["best_seller"], "allergens": ["milk"],
+         "variants": [{"name": "Regular", "add": 0}, {"name": "Large", "add": 20}],
+         "modifier_groups": [{"name": "Sugar level", "min": 1, "max": 1, "options": [{"name": "100%", "add": 0}, {"name": "50%", "add": 0}, {"name": "25%", "add": 0}]},
+                             {"name": "Add-ons", "min": 0, "max": 2, "options": [{"name": "Extra pearls", "add": 15}, {"name": "Cheese foam", "add": 25}]}]},
+        {"name": "Wintermelon", "description": "Classic, 50% sugar", "price": 115},
+        {"name": "Taro Cheese Foam", "description": "Real taro, salted foam", "price": 140, "allergens": ["milk"]}
+      ]},
+      {"name": "Fruit Tea", "items": [
+        {"name": "Mango Passion Fruit Tea", "description": "Green tea, real fruit", "price": 120, "tags": ["new"]}
+      ]}
+    ]
+  },
+  "Bakery": {
+    "tagline": "Fresh bread daily · pre-order for parties",
+    "categories": [
+      {"name": "Breads", "items": [
+        {"name": "Ube Cheese Pandesal", "description": "Soft, warm, per piece", "price": 25, "tags": ["best_seller"], "daily_portions": 60, "allergens": ["milk", "wheat"]},
+        {"name": "Ensaymada", "description": "Buttery, queso de bola", "price": 75, "daily_portions": 24, "allergens": ["milk", "egg", "wheat"]},
+        {"name": "Banana Bread", "description": "Thick slice, walnuts", "price": 95, "allergens": ["tree nuts", "wheat", "egg"]}
+      ]},
+      {"name": "Cakes", "items": [
+        {"name": "Mocha Roll", "description": "Whole roll, good for 8", "price": 380, "allergens": ["milk", "egg", "wheat"]}
+      ]}
+    ]
+  },
+  "Restaurant": {
+    "tagline": "Home-style ulam & rice meals",
+    "categories": [
+      {"name": "Rice Meals", "items": [
+        {"name": "Chicken Adobo Bowl", "description": "Garlic rice, soft egg", "price": 185, "tags": ["best_seller"], "daily_portions": 30, "allergens": ["egg", "soy"],
+         "modifier_groups": [{"name": "Extras", "min": 0, "max": 2, "options": [{"name": "Extra rice", "add": 25}, {"name": "Extra egg", "add": 20}]}]},
+        {"name": "Sisig Rice", "description": "Sizzling pork sisig", "price": 195, "tags": ["spicy"], "daily_portions": 20, "allergens": ["egg"]},
+        {"name": "Tapsilog", "description": "Beef tapa, sinangag, itlog", "price": 180, "allergens": ["egg", "soy"]}
+      ]},
+      {"name": "Drinks", "items": [
+        {"name": "Calamansi Juice", "description": "Freshly squeezed", "price": 60}
+      ]}
+    ]
+  },
+  "Food trays": {
+    "tagline": "Party trays for 10–15 · order a day ahead",
+    "categories": [
+      {"name": "Party Trays", "items": [
+        {"name": "Pancit Bihon Tray", "description": "Good for 10–12", "price": 850, "tags": ["best_seller"], "allergens": ["soy", "shellfish"]},
+        {"name": "Lumpiang Shanghai", "description": "50 pieces", "price": 650, "allergens": ["wheat"]},
+        {"name": "Kare-Kare Tray", "description": "With bagoong, good for 10", "price": 1450, "allergens": ["peanuts", "shellfish"]}
+      ]},
+      {"name": "Desserts", "items": [
+        {"name": "Leche Flan Tray", "description": "Good for 12", "price": 550, "allergens": ["milk", "egg"]}
+      ]}
+    ]
+  }
+}

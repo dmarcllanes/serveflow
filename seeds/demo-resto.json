@@ -1,0 +1,202 @@
+{
+  "store": "demo-resto",
+  "admin_password": "demo-owner-123",
+  "settings": {
+    "name": "Kapé at Kain",
+    "tagline": "Coffee, milk tea & home-style ulam · Poblacion",
+    "brand_color": "#b45309",
+    "accent_color": "#fef3c7",
+    "announcement": "Fresh ensaymada out of the oven every morning — limited portions!",
+    "address": "123 Mabini St, Poblacion, Makati",
+    "contact_phone": "0917 123 4567",
+    "modes": ["dine_in", "pickup", "delivery", "cod"],
+    "payments": ["gcash", "bank", "counter"],
+    "gcash_name": "Kape at Kain (J. D.)",
+    "gcash_number": "0917 123 4567",
+    "bank_details": "BPI Savings\nKape at Kain Food Corp.\nAcct 1234-5678-90",
+    "prep_minutes": 20,
+    "slot_minutes": 30,
+    "hours": {
+      "0": ["07:00", "21:00"], "1": ["07:00", "21:00"], "2": ["07:00", "21:00"], "3": ["07:00", "21:00"],
+      "4": ["07:00", "22:00"], "5": ["08:00", "22:00"], "6": ["08:00", "20:00"]
+    },
+    "accepting_orders": true
+  },
+  "categories": [
+    {
+      "name": "Coffee",
+      "items": [
+        {
+          "name": "Ube Spanish Latte",
+          "description": "Espresso, condensed milk and house-made ube halaya.",
+          "price": 145,
+          "tags": ["best_seller"],
+          "allergens": ["milk"],
+          "variants": [{"name": "Hot 12oz", "add": 0}, {"name": "Iced 16oz", "add": 20}],
+          "modifier_groups": [
+            {"name": "Milk", "min": 1, "max": 1, "options": [
+              {"name": "Fresh milk", "add": 0}, {"name": "Oat milk", "add": 30}]},
+            {"name": "Extras", "min": 0, "max": 2, "options": [
+              {"name": "Extra shot", "add": 30}, {"name": "Ube cold foam", "add": 25}]}
+          ]
+        },
+        {
+          "name": "Barako Americano",
+          "description": "Bold Batangas barako, black.",
+          "price": 95,
+          "variants": [{"name": "Hot 12oz", "add": 0}, {"name": "Iced 16oz", "add": 15}],
+          "modifier_groups": [
+            {"name": "Extras", "min": 0, "max": 1, "options": [{"name": "Extra shot", "add": 30}]}
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Milk Tea",
+      "items": [
+        {
+          "name": "Brown Sugar Milk Tea",
+          "description": "Assam milk tea with brown sugar syrup.",
+          "price": 110,
+          "tags": ["best_seller"],
+          "allergens": ["milk"],
+          "variants": [{"name": "Medium 16oz", "add": 0}, {"name": "Large 22oz", "add": 20}],
+          "modifier_groups": [
+            {"name": "Sugar level", "min": 1, "max": 1, "options": [
+              {"name": "25%"}, {"name": "50%"}, {"name": "75%"}, {"name": "100%"}]},
+            {"name": "Sinkers", "min": 0, "max": 3, "options": [
+              {"name": "Tapioca pearls", "add": 15}, {"name": "Nata de coco", "add": 15},
+              {"name": "Cream cheese", "add": 25}]}
+          ]
+        },
+        {
+          "name": "Wintermelon Milk Tea",
+          "description": "Caramel-like wintermelon, creamy and light.",
+          "price": 100,
+          "allergens": ["milk"],
+          "variants": [{"name": "Medium 16oz", "add": 0}, {"name": "Large 22oz", "add": 20}],
+          "modifier_groups": [
+            {"name": "Sugar level", "min": 1, "max": 1, "options": [
+              {"name": "25%"}, {"name": "50%"}, {"name": "75%"}, {"name": "100%"}]},
+            {"name": "Sinkers", "min": 0, "max": 3, "options": [
+              {"name": "Tapioca pearls", "add": 15}, {"name": "Nata de coco", "add": 15}]}
+          ]
+        },
+        {
+          "name": "Calamansi Honey Cooler",
+          "description": "Fresh calamansi, wild honey, sparkling water.",
+          "price": 85,
+          "tags": ["new", "vegetarian"]
+        }
+      ]
+    },
+    {
+      "name": "Rice Meals",
+      "items": [
+        {
+          "name": "Tapsilog",
+          "description": "House-cured beef tapa, garlic rice, sunny-side egg.",
+          "price": 185,
+          "tags": ["best_seller"],
+          "allergens": ["egg", "soy"],
+          "daily_portions": 30,
+          "modifier_groups": [
+            {"name": "Egg", "min": 1, "max": 1, "options": [
+              {"name": "Sunny-side up"}, {"name": "Scrambled"}, {"name": "No egg", "add": -15}]},
+            {"name": "Add-ons", "min": 0, "max": 2, "options": [
+              {"name": "Extra rice", "add": 25}, {"name": "Extra egg", "add": 20}]}
+          ]
+        },
+        {
+          "name": "Chicken Adobo Rice Bowl",
+          "description": "Soy-vinegar braised chicken, adobo flakes, atchara.",
+          "price": 165,
+          "allergens": ["soy"],
+          "daily_portions": 25,
+          "modifier_groups": [
+            {"name": "Add-ons", "min": 0, "max": 2, "options": [
+              {"name": "Extra rice", "add": 25}, {"name": "Salted egg", "add": 30}]}
+          ]
+        },
+        {
+          "name": "Sizzling Pork Sisig",
+          "description": "Crispy chopped pork, calamansi, chili, egg on a hot plate.",
+          "price": 210,
+          "tags": ["spicy", "best_seller"],
+          "allergens": ["egg"],
+          "daily_portions": 20,
+          "modifier_groups": [
+            {"name": "Spice level", "min": 1, "max": 1, "options": [
+              {"name": "Mild"}, {"name": "Medium"}, {"name": "Extra spicy"}]},
+            {"name": "Add-ons", "min": 0, "max": 1, "options": [{"name": "Extra rice", "add": 25}]}
+          ]
+        },
+        {
+          "name": "Bicol Express",
+          "description": "Pork in coconut cream with siling haba and bagoong.",
+          "price": 195,
+          "tags": ["spicy"],
+          "allergens": ["shellfish"],
+          "daily_portions": 15
+        }
+      ]
+    },
+    {
+      "name": "Noodles & Trays",
+      "items": [
+        {
+          "name": "Pancit Canton Guisado",
+          "description": "Stir-fried egg noodles, pork, shrimp and vegetables.",
+          "price": 175,
+          "allergens": ["gluten", "shellfish", "soy"],
+          "variants": [{"name": "Solo", "add": 0}, {"name": "Party Tray (good for 10)", "add": 975}]
+        }
+      ]
+    },
+    {
+      "name": "Bakery & Desserts",
+      "items": [
+        {
+          "name": "Classic Ensaymada",
+          "description": "Buttery brioche, sugar and grated queso de bola. Baked fresh daily.",
+          "price": 65,
+          "tags": ["best_seller", "vegetarian"],
+          "allergens": ["gluten", "milk", "egg"],
+          "daily_portions": 24
+        },
+        {
+          "name": "Pandesal (10 pcs)",
+          "description": "Soft, warm and lightly sweet.",
+          "price": 60,
+          "tags": ["vegetarian"],
+          "allergens": ["gluten"],
+          "daily_portions": 40,
+          "modifier_groups": [
+            {"name": "Palaman", "min": 0, "max": 2, "options": [
+              {"name": "Kesong puti", "add": 45}, {"name": "Coco jam", "add": 35}]}
+          ]
+        },
+        {
+          "name": "Leche Flan",
+          "description": "Silky egg-yolk custard with caramel.",
+          "price": 90,
+          "tags": ["vegetarian"],
+          "allergens": ["milk", "egg"],
+          "daily_portions": 12
+        },
+        {
+          "name": "Turon à la Mode",
+          "description": "Banana-langka spring roll with ube ice cream.",
+          "price": 95,
+          "tags": ["new", "vegetarian"],
+          "allergens": ["gluten", "milk"]
+        }
+      ]
+    }
+  ],
+  "delivery_zones": [
+    {"name": "Poblacion", "fee": 49, "min_order": 200, "eta_minutes": 30},
+    {"name": "Bel-Air / Salcedo", "fee": 69, "min_order": 300, "eta_minutes": 40},
+    {"name": "BGC", "fee": 99, "min_order": 400, "eta_minutes": 55}
+  ]
+}

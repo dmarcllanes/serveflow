@@ -1,0 +1,55 @@
+{
+  "store": "matchacrumb",
+  "admin_password": "matcha-owner-123",
+  "settings": {
+    "name": "Matcha & Crumb",
+    "tagline": "Stone-ground matcha and bread from our oven, every morning.",
+    "hero_title": "Ceremonial matcha. Warm bread. Made to order.",
+    "about": "We started Matcha & Crumb in our tiny kitchen with one bamboo whisk and a secondhand oven.\nOur matcha is stone-ground ceremonial grade, whisked fresh for every cup. Our breads are proofed overnight and baked before sunrise, so the melonpan is still warm when you pick it up.",
+    "brand_color": "#4d7c0f",
+    "accent_color": "#ecfccb",
+    "announcement": "Matcha melonpan is back! Limited trays every morning.",
+    "address": "Maginhawa St, Teachers Village, Quezon City",
+    "contact_phone": "0917 000 1234",
+    "modes": ["pickup", "dine_in", "delivery"],
+    "payments": ["gcash", "counter"],
+    "gcash_name": "Matcha & Crumb",
+    "gcash_number": "0917 000 1234",
+    "prep_minutes": 15,
+    "slot_minutes": 30,
+    "hours": {
+      "0": ["08:00", "20:00"], "1": ["08:00", "20:00"], "2": ["08:00", "20:00"], "3": ["08:00", "20:00"],
+      "4": ["08:00", "21:00"], "5": ["08:00", "21:00"], "6": ["09:00", "18:00"]
+    },
+    "accepting_orders": true
+  },
+  "categories": [
+    {"name": "Matcha", "items": [
+      {"name": "Ceremonial Matcha Latte", "description": "Stone-ground matcha whisked to order, with fresh milk.", "price": 165, "tags": ["best_seller"], "allergens": ["milk"],
+       "variants": [{"name": "Hot 12oz", "add": 0}, {"name": "Iced 16oz", "add": 20}],
+       "modifier_groups": [
+         {"name": "Milk", "min": 1, "max": 1, "options": [{"name": "Fresh milk", "add": 0}, {"name": "Oat milk", "add": 35}]},
+         {"name": "Sweetness", "min": 1, "max": 1, "options": [{"name": "Regular", "add": 0}, {"name": "Less sweet", "add": 0}, {"name": "Unsweetened", "add": 0}]}]},
+      {"name": "Strawberry Matcha", "description": "Iced matcha over house strawberry compote.", "price": 185, "tags": ["best_seller"], "allergens": ["milk"],
+       "modifier_groups": [{"name": "Milk", "min": 1, "max": 1, "options": [{"name": "Fresh milk", "add": 0}, {"name": "Oat milk", "add": 35}]}]},
+      {"name": "Dirty Matcha", "description": "Matcha latte with a shot of espresso.", "price": 180, "allergens": ["milk"]},
+      {"name": "Matcha Einspänner", "description": "Iced matcha under a cloud of sweet cream.", "price": 195, "tags": ["new"], "allergens": ["milk"]},
+      {"name": "Usucha (Pure Matcha)", "description": "Traditional thin matcha, whisked with hot water.", "price": 150}
+    ]},
+    {"name": "Breads", "items": [
+      {"name": "Matcha Melonpan", "description": "Crackly cookie crust, soft matcha crumb. Baked every morning.", "price": 85, "tags": ["best_seller"], "daily_portions": 24, "allergens": ["milk", "egg", "wheat"]},
+      {"name": "Matcha Cream Bun", "description": "Milk bread filled with matcha custard.", "price": 95, "daily_portions": 20, "allergens": ["milk", "egg", "wheat"]},
+      {"name": "Ube Cheese Pandesal", "description": "Soft, warm, per piece.", "price": 25, "daily_portions": 60, "allergens": ["milk", "wheat"]},
+      {"name": "Country Sourdough Loaf", "description": "48-hour ferment, crackly crust. Whole loaf.", "price": 320, "allergens": ["wheat"]},
+      {"name": "Butter Croissant", "description": "Laminated with French butter.", "price": 110, "tags": ["new"], "allergens": ["milk", "wheat"]}
+    ]},
+    {"name": "Bundles", "items": [
+      {"name": "Matcha & Melonpan Set", "description": "Any matcha latte + a matcha melonpan.", "price": 230, "tags": ["best_seller"], "allergens": ["milk", "egg", "wheat"]},
+      {"name": "Pasalubong Box (6 breads)", "description": "Assorted breads of the day, boxed.", "price": 480, "allergens": ["milk", "egg", "wheat"]}
+    ]}
+  ],
+  "delivery_zones": [
+    {"name": "Teachers Village / UP Diliman", "fee": 49, "min_order": 300, "eta_minutes": 30},
+    {"name": "Quezon City (other)", "fee": 89, "min_order": 500, "eta_minutes": 50}
+  ]
+}

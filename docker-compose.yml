@@ -1,0 +1,44 @@
+# Total RAM budget < 150 MB: app 110m + caddy 40m.
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATA_DIR: /app/data
+      HTTPS_ONLY: "1"
+    volumes:
+      - ./data:/app/data
+    mem_limit: 110m
+    memswap_limit: 110m
+    expose:
+      - "5001"
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "2" }
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      BASE_DOMAIN: ${BASE_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    mem_limit: 40m
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "2" }
+
+volumes:
+  caddy_data:
+  caddy_config:
