@@ -215,8 +215,29 @@ Health check URL (e.g. for a free UptimeRobot monitor):
   volume (keep ~7), or
 - copy it off the box (SQLite in WAL mode: copy while idle, or use `sqlite3 <db> ".backup out.db"`).
 
-**Don't** stop or terminate the instance if the links should stay up. Stopping keeps data and the
-Elastic IP; terminating deletes the disk.
+### Stopping and starting the instance (to save money)
+
+You can **Stop** the instance when nobody needs the site and **Start** it later; the same links
+work again with no setup:
+
+- **Same address:** the Elastic IP stays attached through stop/start, so every
+  `*.16-179-248-107.sslip.io` link keeps pointing at the instance. (Without an Elastic IP the
+  public IP would change and break the links.)
+- **Starts itself:** Docker starts on boot and both containers are `restart: unless-stopped`, so no
+  SSH or `deploy.sh` is needed after Start.
+- **Data kept:** `/opt/biteflow/data` (store DBs, uploads) lives on the EBS volume, which survives a
+  stop. Only **Terminate** deletes it.
+
+Things to know:
+
+- While stopped, the site is unreachable (no orders, no admin). After Start, allow ~1–2 minutes,
+  then check `https://demo-resto.16-179-248-107.sslip.io/healthz`.
+- Stopped still costs ~$5.50/month (EBS ~$1.90 + Elastic IP ~$3.60); only the ~$9.60 compute
+  charge stops.
+- **Don't release the Elastic IP** — a new one means new links.
+- A push to `master` while stopped fails the GitHub Actions deploy (SSH can't connect); re-run the
+  job or push again after Start.
+- **Never Terminate** unless you're done with it — that deletes the disk.
 
 ## Troubleshooting
 
