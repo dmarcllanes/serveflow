@@ -1,7 +1,7 @@
-# CLAUDE.md — BiteFlow (White-Label Agentic Online Ordering for Restaurants & Cafés)
+# CLAUDE.md — ServeFlow (White-Label Agentic Online Ordering for Restaurants & Cafés)
 
 ## Project Overview
-BiteFlow is a single-codebase, multi-tenant web app that gives small Philippine food businesses
+ServeFlow is a single-codebase, multi-tenant web app that gives small Philippine food businesses
 (restaurants, cafés, milk tea shops, bakeries, food trays, cloud kitchens) their own white-label
 online ordering store with an AI food concierge. Each business lives at `<store>.yourdomain.com`
 with its own SQLite DB and 0% commission.
@@ -52,4 +52,33 @@ with its own SQLite DB and 0% commission.
 ├── seed_client.py               # `uv run python seed_client.py seeds/demo-resto.json`
 ├── seeds/demo-resto.json        # sample café/kitchen (~12–14 items, variants, modifier groups)
 ├── seeds/starters.json          # starter menus per business type for self-serve signups
-└── data/                        # git-ignored: <store>.db files + uploads/<store>/*
+├── data/                        # git-ignored: <store>.db files + uploads/<store>/*
+└── tests/                       # pytest: order rules, admin flows, many-devices-at-once (real uvicorn)
+```
+
+## Rules That Keep Data Correct
+- **One connection per thread, opened on the handler's thread.** `db.get_db(store)` returns a
+  thread-local connection. FastHTML runs the beforeware and the route handler on *different*
+  threadpool threads, so never stash a connection in `req.scope` for handlers to reuse. Handlers
+  get theirs from `ctx(req)` (admin.py / storefront.py). Sharing one caused "cannot start a
+  transaction within a transaction" when several devices tapped at once
+  (`tests/test_concurrency.py` guards this). Never `await` inside `db.tx()`.
+- **Unpaid orders expire.** GCash/bank orders with no proof are cancelled after
+  `payment_window_minutes` (setting, default 30, owner-editable; the clock restarts when a proof is
+  rejected), releasing their portions. Orders with a proof waiting for the owner are never touched.
+  There's no background worker: `db.housekeep()` runs the sweep from `ctx()` at most once a minute
+  per store. The customer's order page and the kitchen card show the deadline.
+- **Portions for later days.** `orders.portions_held` is 1 when the order took its portions out of
+  `items.remaining`. Orders scheduled for a later day are 0: they're checked against that day's
+  `daily_portions`, and `reset_daily_portions()` on that day subtracts them (pressing reset twice
+  gives the same result). Cancelling only gives back portions that were actually taken.
+- **Password change logs out other devices.** `_session_ver` (private setting) is bumped by
+  `set_admin_password`; a session is the owner's only while `sess["admin_ver"]` matches
+  (checked in `main.before`). Changing it in the admin requires the current password.
+- **Co-pilot proposals are claimed before they run**, so a double tap or two devices can't apply
+  the same action twice; a failed action is recorded as `failed`.
+- **Migrations** are append-only entries in `db.MIGRATIONS` (tracked by `PRAGMA user_version`).
+
+## Tests
+`uv run pytest -q` (scratch `DATA_DIR`, never touches `data/`). GitHub Actions runs them before
+every deploy; a failure stops the deploy.

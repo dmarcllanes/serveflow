@@ -168,7 +168,7 @@ def _float_chip(dot, title, sub, cls):
 def _nav(contact, demo):
     return Header(
         Nav(A(Span(cls="size-2.5 rounded-full bg-gradient-to-br from-orange-500 to-rose-500"),
-              Span("BiteFlow", cls="font-display text-lg font-bold"), href="#top", cls="flex items-center gap-2"),
+              Span("ServeFlow", cls="font-display text-lg font-bold"), href="#top", cls="flex items-center gap-2"),
             Div(*[A(t, href=h, cls="rounded-full px-3 py-1.5 text-sm font-medium text-stone-600 hover:bg-stone-900/5 hover:text-stone-950 transition")
                   for t, h in (("Features", "#features"), ("A day", "#day"), ("AI", "#ai"), ("Kitchen", "#kitchen"),
                                ("Pricing", "#pricing"), ("FAQ", "#faq"))],
@@ -231,7 +231,7 @@ def _calculator():
     return Section(
         Div(
             Div(_head("Keep your margin", "How much is commission really costing you?",
-                      "Marketplace apps take a cut of every order. On BiteFlow the whole order is yours. "
+                      "Marketplace apps take a cut of every order. On ServeFlow the whole order is yours. "
                       "Enter your own numbers below."),
                 cls="flex-1"),
             _card(
@@ -257,7 +257,7 @@ def _calculator():
                             Div(id="bar-fee", cls="h-full rounded-r-full bg-gradient-to-r from-orange-500 to-rose-500 transition-[width] duration-500", style="width:25%"),
                             cls="flex h-3 flex-1 overflow-hidden rounded-full"),
                         cls="mt-3 flex items-center gap-3"),
-                    Div(P("BiteFlow", cls="w-24 shrink-0 text-xs font-semibold"),
+                    Div(P("ServeFlow", cls="w-24 shrink-0 text-xs font-semibold"),
                         Div(cls="h-3 flex-1 rounded-full bg-stone-800"),
                         cls="mt-2 flex items-center gap-3"),
                     Div(Span(Span(cls="inline-block size-2 rounded-full bg-stone-800 mr-1.5"), "You keep"),
@@ -268,7 +268,7 @@ def _calculator():
                         P("₱450,000", id="calc-year", cls="font-display mt-1 text-4xl sm:text-5xl font-bold tabular-nums"),
                         P(Span("₱37,500", id="calc-month", cls="tabular-nums font-semibold text-white"), " every month",
                           cls="mt-1 text-sm text-orange-200")),
-                    Div(P("On BiteFlow", cls="text-xs font-semibold text-orange-200"),
+                    Div(P("On ServeFlow", cls="text-xs font-semibold text-orange-200"),
                         P("₱0", cls="font-display mt-1 text-4xl sm:text-5xl font-bold"), cls="text-right"),
                     cls="mt-7 flex items-end justify-between gap-4 rounded-2xl bg-gradient-to-br from-stone-900 to-stone-800 p-5 text-white"),
                 cls="reveal flex-1 w-full p-6 sm:p-8"),
@@ -516,7 +516,7 @@ def _pricing(contact, demo):
                       "setup fee switches it on. No monthly subscription and no cut of your orders after that."),
                 cls="flex-1"),
             Div(Div(
-                Div(P("BiteFlow Store", cls="font-semibold"), _pill("One-time setup", "bg-orange-100 text-orange-800"),
+                Div(P("ServeFlow Store", cls="font-semibold"), _pill("One-time setup", "bg-orange-100 text-orange-800"),
                     cls="flex items-center justify-between"),
                 P("Pay once", cls="font-display mt-4 text-6xl font-bold"),
                 P("₱0 monthly · 0% commission", cls="mt-2 font-semibold text-orange-700"),
@@ -540,9 +540,9 @@ FAQ = [
      "No. Your store is a website that opens in any phone browser, including inside Facebook and Messenger."),
     ("How do I get paid?",
      "Directly. Customers send GCash or bank transfers to your own accounts and upload a proof of payment, "
-     "which you confirm in the admin. Cash on delivery and pay-at-counter also work. BiteFlow never holds your money."),
+     "which you confirm in the admin. Cash on delivery and pay-at-counter also work. ServeFlow never holds your money."),
     ("Do you take a percentage of my sales?",
-     "No. BiteFlow charges 0% commission and no monthly subscription. You pay a one-time setup fee, "
+     "No. ServeFlow charges 0% commission and no monthly subscription. You pay a one-time setup fee, "
      "and every order after that is yours, however many you get."),
     ("Can I handle delivery myself?",
      "Yes. You set delivery zones and fees and use your own riders or a courier you book. Customers can also "
@@ -593,7 +593,7 @@ def _footer(local_stores, base):
                   cls="mt-6 rounded-xl border border-dashed border-stone-300 p-3")
     return Footer(
         Div(Div(A(Span(cls="size-2.5 rounded-full bg-gradient-to-br from-orange-500 to-rose-500"),
-                  Span("BiteFlow", cls="font-display text-lg font-bold"), href="#top", cls="flex items-center gap-2"),
+                  Span("ServeFlow", cls="font-display text-lg font-bold"), href="#top", cls="flex items-center gap-2"),
                 P("White-label online ordering for Philippine food businesses.", cls="text-sm text-stone-500"),
                 cls="flex flex-col sm:flex-row sm:items-center justify-between gap-2"),
             dev,
@@ -710,7 +710,7 @@ def _preview(base):
 # ---------------------------------------------------------------- scroll-lit statement
 
 MANIFESTO = ("Marketplace apps list you next to your competitors and take a cut of every order. "
-             "BiteFlow gives you *your *own *link, *your *own *brand, *your *own *customers, "
+             "ServeFlow gives you *your *own *link, *your *own *brand, *your *own *customers, "
              "and *every *peso *of *every *sale.")
 
 
@@ -720,7 +720,7 @@ def _manifesto():
         Div(P(*words, id="manifesto",
               cls="font-display text-[2rem] sm:text-5xl lg:text-6xl font-bold leading-[1.1] text-balance"),
             cls="mx-auto max-w-5xl px-5 py-28"),
-        aria_label="Why BiteFlow")
+        aria_label="Why ServeFlow")
 
 
 # ---------------------------------------------------------------- a day in the kitchen (scrollytelling)
@@ -806,7 +806,7 @@ def _device():
 
 def _day():
     return Section(
-        Div(_head("A day with BiteFlow", "From the 7 AM prep to the 9 PM close",
+        Div(_head("A day with ServeFlow", "From the 7 AM prep to the 9 PM close",
                   "Scroll through a typical day in a busy café kitchen."),
             Div(
                 Div(*[Div(Div(P(t, cls="story-time font-display text-5xl sm:text-6xl font-bold grad-text"),
@@ -1111,7 +1111,7 @@ if (!reduce && lws.length) { const man = $('#manifesto');
     const n = Math.round(p * lws.length); lws.forEach((w, k) => w.classList.toggle('on', k < n)); };
   addEventListener('scroll', lit, {passive: true}); lit(); }
 
-// a day with BiteFlow
+// a day with ServeFlow
 const hooks = {
   0: el => el.querySelectorAll('.tick').forEach(t => { t.dataset.v = 0; const to = +t.dataset.to; if (reduce) { t.textContent = to; return; }
        const t0 = performance.now(), f = n => { const k = Math.min(1, (n - t0) / 900); t.textContent = Math.round(to * (1 - Math.pow(1 - k, 3))); if (k < 1) requestAnimationFrame(f); }; requestAnimationFrame(f); }),
@@ -1173,9 +1173,9 @@ def coming_soon(settings: dict) -> Response:
 def login_page(base: str, store: str = "", not_found: bool = False) -> Response:
     dom = "yourdomain.com" if base == "localhost" else base
     return _simple_doc(
-        "Log in to your store · BiteFlow",
+        "Log in to your store · ServeFlow",
         Div(Div(A(Span(cls="size-2.5 rounded-full bg-gradient-to-br from-orange-500 to-rose-500"),
-                  Span("BiteFlow", cls="font-display text-lg font-bold"), href="/", cls="flex items-center justify-center gap-2"),
+                  Span("ServeFlow", cls="font-display text-lg font-bold"), href="/", cls="flex items-center justify-center gap-2"),
                 H1("Log in to your store", cls="font-display mt-8 text-3xl font-bold"),
                 P("Enter your store link and we'll take you to your owner dashboard.", cls="mt-2 text-stone-600"),
                 Form(Div(Input(name="store", value=store, required=True, autofocus=True, autocapitalize="none",
@@ -1202,7 +1202,7 @@ def page(base_domain: str) -> Response:
     demo = None
     local = (sorted(p.stem for p in db.DATA_DIR.glob("*.db") if db.STORE_RE.match(p.stem))
              if base_domain == "localhost" else [])
-    title = "BiteFlow: 0% commission online ordering for Philippine restaurants & cafés"
+    title = "ServeFlow: 0% commission online ordering for Philippine restaurants & cafés"
     desc = ("Your own branded online ordering store with GCash payments, a kitchen queue and an AI menu "
             "concierge. One-time setup, no monthly fees, 0% commission.")
     js = JS.replace("__TYPES__", json.dumps(TYPES)).replace("__CHAT__", json.dumps(CHAT)).replace("__COPILOT__", json.dumps(COPILOT))

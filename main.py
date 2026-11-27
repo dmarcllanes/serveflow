@@ -1,4 +1,4 @@
-"""BiteFlow app setup: tenancy (subdomain → store DB), auth, route mounting.
+"""ServeFlow app setup: tenancy (subdomain → store DB), auth, route mounting.
 
 Run locally:  uv run python main.py   →  http://demo-resto.localhost:5001
 With DEFAULT_STORE=<store> in .env, the bare address (http://localhost:5001) serves that store directly.
@@ -57,12 +57,18 @@ def before(req, sess):
         if store is None:
             return None if path in BARE_DOMAIN_ROUTES else landing()
         return Response("Store not found", status_code=404)
+    # Only the store name goes in the scope. Handlers open their DB connection with db.get_db()
+    # on their own thread: FastHTML runs this beforeware and the handler on different threadpool
+    # threads, so a connection fetched here would be shared by concurrent requests.
     req.scope["store"] = store
-    req.scope["con"] = db.get_db(store)
+    con = db.get_db(store)  # this thread's connection; used only inside this function
     is_owner = sess.get("admin") == store
+    if is_owner and sess.get("admin_ver", 0) != db.session_version(con):
+        sess.pop("admin", None)  # the password was changed on another device
+        is_owner = False
     if not path.startswith("/admin"):
         # Un-activated stores: customers get "coming soon"; the logged-in owner gets a preview.
-        s = db.get_settings(req.scope["con"])
+        s = db.get_settings(con)
         if not db.is_live(s):
             if not is_owner:
                 import landing as lp
@@ -90,7 +96,7 @@ app, rt = fast_app(
     key_fname=str(db.DATA_DIR / ".sesskey"),
     sess_https_only=os.environ.get("HTTPS_ONLY", "0") == "1",
     max_age=60 * 60 * 24 * 30,
-    title="BiteFlow",
+    title="ServeFlow",
     bodykw={"cls": "font-sans antialiased"},
 )
 

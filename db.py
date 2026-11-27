@@ -1,4 +1,4 @@
-"""Schema, migrations, reads and ALL writes for a BiteFlow store.
+"""Schema, migrations, reads and ALL writes for a ServeFlow store.
 
 One SQLite file per store (data/<store>.db). Connections are autocommit
 (isolation_level=None); every write that must be consistent runs inside
@@ -15,6 +15,7 @@ import re
 import secrets
 import sqlite3
 import threading
+import time
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -26,7 +27,7 @@ STORE_RE = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$")
 # Subdomains a self-serve signup may never claim.
 RESERVED_STORES = frozenset("""
 www admin api app apps mail smtp imap pop ftp static assets cdn media img images help support status blog docs
-dashboard signup login logout register account accounts billing pay payment payments biteflow demo test staging dev
+dashboard signup login logout register account accounts billing pay payment payments biteflow serveflow demo test staging dev
 root ns ns1 ns2 mx email secure store stores shop owner kitchen order orders _tls_check healthz
 """.split())
 
@@ -236,6 +237,12 @@ MIGRATIONS = [
         id TEXT PRIMARY KEY, kind TEXT NOT NULL, messages TEXT NOT NULL DEFAULT '[]',
         updated_at TEXT NOT NULL);
     """,
+    # 2: portions_held = 1 when the order took its portions out of items.remaining (every order
+    # until now). Orders for a later day are 0 until reset_daily_portions on that day takes them.
+    """
+    ALTER TABLE orders ADD COLUMN portions_held INTEGER NOT NULL DEFAULT 1;
+    CREATE INDEX orders_sched ON orders(scheduled_for);
+    """,
 ]
 
 
@@ -278,6 +285,8 @@ DEFAULT_SETTINGS = {
     # weekday (0=Mon) -> ["HH:MM", "HH:MM"] or null when closed
     "hours": {str(d): ["08:00", "20:00"] for d in range(7)},
     "accepting_orders": True,
+    # GCash / bank orders with no payment proof are cancelled (portions released) after this long
+    "payment_window_minutes": 30,
 }
 
 
@@ -307,9 +316,16 @@ def _hash_pw(pw: str, salt: bytes) -> str:
     return hashlib.pbkdf2_hmac("sha256", pw.encode(), salt, 200_000).hex()
 
 
-def set_admin_password(con, pw: str) -> None:
-    if len(pw) < 8:
-        raise OrderError("Password must be at least 8 characters.")
+def session_version(con) -> int:
+    """Bumped on every password change. An admin session is only valid while its saved version
+    matches, so changing the password logs out every other device."""
+    return int(get_private(con, "session_ver") or 0)
+
+
+def set_admin_password(con, pw: str) -> int:
+    """Set the owner password and log out all existing sessions. Returns the new session version."""
+    if not 8 <= len(pw or "") <= 128:
+        raise OrderError("Password must be 8–128 characters.")
     salt = secrets.token_bytes(16)
     with tx(con):
         con.execute(
@@ -317,6 +333,22 @@ def set_admin_password(con, pw: str) -> None:
             "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
             (json.dumps(salt.hex() + "$" + _hash_pw(pw, salt)),),
         )
+        r = con.execute("SELECT value FROM settings WHERE key='_session_ver'").fetchone()
+        ver = int(json.loads(r["value"]) if r else 0) + 1
+        con.execute("INSERT INTO settings(key, value) VALUES('_session_ver', ?) "
+                    "ON CONFLICT(key) DO UPDATE SET value=excluded.value", (json.dumps(ver),))
+    return ver
+
+
+def change_admin_password(con, current: str, new: str, confirm: str) -> int:
+    """Owner-initiated change from the admin. Raises OrderError with a message to show."""
+    if not check_admin_password(con, current or ""):
+        raise OrderError("Your current password is wrong.")
+    if new != confirm:
+        raise OrderError("The two new passwords don't match.")
+    if new == current:
+        raise OrderError("Choose a password different from the current one.")
+    return set_admin_password(con, new)
 
 
 def check_admin_password(con, pw: str) -> bool:
@@ -495,8 +527,9 @@ def delivery_zones(con, include_inactive=False) -> list[dict]:
 # ---------------------------------------------------------------- pricing
 
 def price_line(con, item_id: int, variant_id: int | None, modifier_ids: list[int], qty: int,
-               note: str = "") -> dict:
-    """Validate a cart line against live DB rows and price it. Raises OrderError."""
+               note: str = "", future: bool = False) -> dict:
+    """Validate a cart line against live DB rows and price it. Raises OrderError.
+    future=True (an order for a later day) skips today's 86 flag and portions left."""
     try:
         qty = int(qty)
     except (TypeError, ValueError):
@@ -506,7 +539,7 @@ def price_line(con, item_id: int, variant_id: int | None, modifier_ids: list[int
     it = get_item(con, int(item_id))
     if not it or not it["active"]:
         raise OrderError("That item is no longer on the menu.")
-    if it["sold_out"] or (it["remaining"] is not None and it["remaining"] <= 0):
+    if not future and (it["sold_out"] or (it["remaining"] is not None and it["remaining"] <= 0)):
         raise OrderError(f"{it['name']} is sold out.")
     unit = it["price_cents"]
     variant = None
@@ -539,13 +572,13 @@ def price_line(con, item_id: int, variant_id: int | None, modifier_ids: list[int
     }
 
 
-def price_cart(con, cart: list[dict]) -> tuple[list[dict], list[str]]:
+def price_cart(con, cart: list[dict], future: bool = False) -> tuple[list[dict], list[str]]:
     """Price every cart line; returns (valid_lines, error_messages)."""
     lines, errors = [], []
     for raw in cart:
         try:
             lines.append(price_line(con, raw["item_id"], raw.get("variant_id"), raw.get("modifier_ids", []),
-                                    raw.get("qty", 1), raw.get("note", "")))
+                                    raw.get("qty", 1), raw.get("note", ""), future))
         except (OrderError, KeyError, TypeError, ValueError) as e:
             errors.append(str(e) if isinstance(e, OrderError) else "An item in your cart is no longer valid.")
     return lines, errors
@@ -630,17 +663,27 @@ def place_order(con, cart: list[dict], form: dict) -> dict:
         if not zone:
             raise OrderError("Choose your delivery area.")
 
+    # An order for a later day doesn't touch today's portions: it's checked against that day's
+    # daily_portions here, and reset_daily_portions takes it out on the day.
+    day = datetime.fromisoformat(scheduled).date() if scheduled else None
+    future = day is not None and day > now().date()
+
     with tx(con):
-        lines, errors = price_cart(con, cart)
+        lines, errors = price_cart(con, cart, future)
         if errors:
             raise OrderError(errors[0])
-        # aggregate portion demand per item and decrement atomically
         need: dict[int, int] = {}
         for ln in lines:
             need[ln["item_id"]] = need.get(ln["item_id"], 0) + ln["qty"]
         for item_id, q in need.items():
-            r = con.execute("SELECT name, remaining FROM items WHERE id=?", (item_id,)).fetchone()
-            if r["remaining"] is not None:
+            r = con.execute("SELECT name, remaining, daily_portions FROM items WHERE id=?", (item_id,)).fetchone()
+            if future:
+                if r["daily_portions"] is not None:
+                    left = r["daily_portions"] - _prebooked(con, day, item_id)
+                    if left < q:
+                        raise OrderError(f"Only {max(left, 0)} {r['name']} left for {day:%a %b %-d}."
+                                         if left > 0 else f"{r['name']} is fully booked for {day:%a %b %-d}.")
+            elif r["remaining"] is not None:
                 if r["remaining"] < q:
                     left = r["remaining"]
                     raise OrderError(f"Only {left} {r['name']} left." if left else f"{r['name']} just sold out.")
@@ -664,12 +707,12 @@ def place_order(con, cart: list[dict], form: dict) -> dict:
         oid = con.execute(
             """INSERT INTO orders(token, customer_id, customer_name, phone, mode, table_no, address,
                    zone_id, zone_name, delivery_fee_cents, subtotal_cents, total_cents, payment_method,
-                   payment_status, status, scheduled_for, notes, created_at, updated_at)
-               VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                   payment_status, status, scheduled_for, notes, created_at, updated_at, portions_held)
+               VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (token, cid, name, phone, mode, table_no, address, zone["id"] if zone else None,
              zone["name"] if zone else None, fee, subtotal, subtotal + fee, payment,
              "unpaid" if online else "collect", order_status, scheduled,
-             (form.get("notes") or "").strip()[:300], ts, ts)).lastrowid
+             (form.get("notes") or "").strip()[:300], ts, ts, 0 if future else 1)).lastrowid
         con.execute("UPDATE orders SET code=? WHERE id=?", (f"#{oid:04d}", oid))
         for ln in lines:
             con.execute(
@@ -727,7 +770,21 @@ def status_counts(con) -> dict:
     return out
 
 
+def _prebooked(con, day, item_id: int | None = None) -> int:
+    """Portions taken by live orders placed for `day` that haven't been taken out of `remaining`
+    yet (portions_held=0), for one item or all items."""
+    q = ("SELECT COALESCE(SUM(oi.qty), 0) FROM order_items oi JOIN orders o ON o.id=oi.order_id "
+         "WHERE o.portions_held=0 AND o.status!='cancelled' AND substr(o.scheduled_for,1,10)=?")
+    args: list = [day.isoformat()]
+    if item_id is not None:
+        q += " AND oi.item_id=?"
+        args.append(item_id)
+    return con.execute(q, args).fetchone()[0]
+
+
 def _restore_portions(con, order_id: int) -> None:
+    if not con.execute("SELECT portions_held FROM orders WHERE id=?", (order_id,)).fetchone()[0]:
+        return  # a later-day order that never took today's portions
     for li in con.execute("SELECT item_id, qty FROM order_items WHERE order_id=?", (order_id,)).fetchall():
         if li["item_id"]:
             con.execute(
@@ -744,13 +801,71 @@ def advance_order(con, order_id: int, to: str, note: str = "") -> dict:
         if to not in allowed_next(dict(o)):
             raise OrderError(f"Can't move {o['code']} from {STATUS_LABEL[o['status']]} to {STATUS_LABEL.get(to, to)}.")
         if to == "cancelled":
-            _restore_portions(con, order_id)
-            con.execute("UPDATE customers SET orders_count=MAX(orders_count-1,0), "
-                        "total_spent_cents=MAX(total_spent_cents-?,0) WHERE id=?",
-                        (o["total_cents"], o["customer_id"]))
-        con.execute("UPDATE orders SET status=?, updated_at=? WHERE id=?", (to, iso(), order_id))
-        _event(con, order_id, o["status"], to, note)
+            _cancel(con, o, note)
+        else:
+            con.execute("UPDATE orders SET status=?, updated_at=? WHERE id=?", (to, iso(), order_id))
+            _event(con, order_id, o["status"], to, note)
     return get_order(con, order_id)
+
+
+def _cancel(con, o, note: str) -> None:
+    """Cancel inside an open transaction: release portions and undo the customer's totals."""
+    _restore_portions(con, o["id"])
+    con.execute("UPDATE customers SET orders_count=MAX(orders_count-1,0), "
+                "total_spent_cents=MAX(total_spent_cents-?,0) WHERE id=?", (o["total_cents"], o["customer_id"]))
+    con.execute("UPDATE orders SET status='cancelled', updated_at=? WHERE id=?", (iso(), o["id"]))
+    _event(con, o["id"], o["status"], "cancelled", note)
+
+
+EXPIRED_NOTE = "Payment not received in time"
+
+
+def payment_window(settings: dict) -> int:
+    try:
+        return max(5, min(24 * 60, int(settings.get("payment_window_minutes") or 30)))
+    except (TypeError, ValueError):
+        return 30
+
+
+def payment_deadline(o: dict, settings: dict) -> datetime | None:
+    """When an unpaid GCash/bank order is cancelled automatically (None if it isn't waiting on the
+    customer). The clock starts when the order is placed, and again when a proof is rejected."""
+    if o["status"] != "pending_payment" or o["payment_status"] not in ("unpaid", "rejected"):
+        return None
+    return datetime.fromisoformat(o["updated_at"]) + timedelta(minutes=payment_window(settings))
+
+
+def expire_unpaid(con, settings: dict | None = None) -> int:
+    """Cancel GCash/bank orders still unpaid after the payment window, releasing their portions.
+    Orders with a proof waiting for the owner are never touched. Returns how many were cancelled."""
+    settings = settings or get_settings(con)
+    cutoff = iso(now() - timedelta(minutes=payment_window(settings)))
+    stale = ("SELECT * FROM orders WHERE status='pending_payment' "
+             "AND payment_status IN ('unpaid','rejected') AND updated_at<?")
+    if not con.execute(stale, (cutoff,)).fetchone():  # common case: no write lock needed
+        return 0
+    n = 0
+    with tx(con):
+        for o in con.execute(stale, (cutoff,)).fetchall():  # re-read inside the lock
+            _cancel(con, o, EXPIRED_NOTE)
+            n += 1
+    return n
+
+
+_swept: dict[str, float] = {}
+
+
+def housekeep(con, store: str, every: float = 60) -> None:
+    """Cheap periodic upkeep, run from request handlers (there's no background worker):
+    at most once a minute per store per process."""
+    t = time.monotonic()
+    if t - _swept.get(store, -every) < every:
+        return
+    _swept[store] = t
+    try:
+        expire_unpaid(con)
+    except sqlite3.OperationalError:  # busy: try again on a later request
+        _swept.pop(store, None)
 
 
 def submit_payment_proof(con, token: str, proof_path: str, ref: str) -> dict:
@@ -758,6 +873,8 @@ def submit_payment_proof(con, token: str, proof_path: str, ref: str) -> dict:
         o = con.execute("SELECT * FROM orders WHERE token=?", (token,)).fetchone()
         if not o:
             raise OrderError("Order not found.")
+        if o["status"] == "cancelled":
+            raise OrderError("This order was cancelled, so no payment is needed. Please place a new order.")
         if o["status"] != "pending_payment" or o["payment_status"] not in ("unpaid", "rejected"):
             raise OrderError("This order no longer needs a payment proof.")
         con.execute("UPDATE orders SET proof_path=?, payment_ref=?, payment_status='submitted', updated_at=? "
@@ -816,8 +933,20 @@ def set_price(con, item_id: int, price_cents: int) -> dict:
 
 
 def reset_daily_portions(con, clear_sold_out: bool = True) -> int:
+    """Start a new day: refill every tracked item, minus what customers already booked for today
+    in earlier days (those orders then count as holding their portions)."""
+    today = now().date()
     with tx(con):
         n = con.execute("UPDATE items SET remaining=daily_portions WHERE daily_portions IS NOT NULL").rowcount
+        for r in con.execute(
+                "SELECT oi.item_id, SUM(oi.qty) q FROM order_items oi JOIN orders o ON o.id=oi.order_id "
+                "WHERE o.status!='cancelled' AND substr(o.scheduled_for,1,10)=? "
+                "AND (o.portions_held=0 OR substr(o.created_at,1,10)<?) AND oi.item_id IS NOT NULL "
+                "GROUP BY oi.item_id", (today.isoformat(), today.isoformat())).fetchall():
+            con.execute("UPDATE items SET remaining=MAX(remaining-?, 0) WHERE id=? AND remaining IS NOT NULL",
+                        (r["q"], r["item_id"]))
+        con.execute("UPDATE orders SET portions_held=1 WHERE portions_held=0 AND status!='cancelled' "
+                    "AND substr(scheduled_for,1,10)=?", (today.isoformat(),))
         if clear_sold_out:
             con.execute("UPDATE items SET sold_out=0")
         con.execute("INSERT INTO settings(key, value) VALUES('last_portion_reset', ?) "
@@ -1048,6 +1177,12 @@ def get_proposal(con, pid: int) -> dict | None:
 def pending_proposals(con) -> list[dict]:
     return [get_proposal(con, r["id"]) for r in con.execute(
         "SELECT id FROM ai_proposals WHERE status='pending' ORDER BY id DESC LIMIT 20")]
+
+
+def settle_proposal(con, pid: int, status: str, result: str) -> None:
+    """Record the outcome of a proposal already claimed with decide_proposal(..., 'confirmed')."""
+    with tx(con):
+        con.execute("UPDATE ai_proposals SET status=?, result=? WHERE id=?", (status, result[:300], pid))
 
 
 def decide_proposal(con, pid: int, status: str, result: str = "") -> bool:

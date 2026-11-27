@@ -354,7 +354,8 @@ def _final(s: dict, h: dict):
 def home(req, sess, table: str = ""):
     if table:  # a table QR → straight to the menu with the table remembered
         return RedirectResponse(f"/menu?table={quote(table)}", status_code=303)
-    _, con = req.scope["store"], req.scope["con"]
+    con = db.get_db(req.scope["store"])
+    db.housekeep(con, req.scope["store"])
     s = db.get_settings(con)
     status = db.kitchen_status(s)
     cats = db.categories(con)
@@ -388,7 +389,7 @@ def home(req, sess, table: str = ""):
                 _visit(s, h) if h["show_visit"] else None,
                 _final(s, h) if h["show_final"] else None, cls="overflow-x-clip bg-[#faf7f2]"),
             Footer(Div(P(f"© {datetime.now().year} {s['name']}", cls="font-semibold"),
-                       P("Online ordering by BiteFlow · 0% commission", cls="text-stone-500"),
+                       P("Online ordering by ServeFlow · 0% commission", cls="text-stone-500"),
                        cls="mx-auto flex max-w-6xl flex-col justify-between gap-1 px-5 py-8 pb-24 text-sm sm:flex-row md:pb-8"),
                    cls="border-t border-stone-900/10 bg-[#faf7f2]"),
             storefront.cart_bar(con, sess, empty=(h["order_label"], "/menu")), ai.chat_widget("concierge", s), Script(JS),

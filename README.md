@@ -1,4 +1,4 @@
-# BiteFlow
+# ServeFlow
 
 White-label, 0%-commission online ordering for small Philippine food businesses, with an AI menu
 concierge and a kitchen co-pilot. One codebase, one SQLite file per store, `<store>.yourdomain.com`.
@@ -33,6 +33,14 @@ AI is optional: set `LLM_API_KEY` (and optionally `LLM_BASE_URL`, `LLM_MODEL`; d
 4. **Pay**: GCash or bank transfer with a screenshot upload, pay at the counter, or COD.
 5. **Track** on the private `/order/<token>` page as the kitchen moves the order through
    Payments → Preparing → Ready → Completed in **Admin → Kitchen**.
+
+## Tests
+
+```bash
+uv run pytest -q    # scratch DATA_DIR, never touches data/
+```
+
+GitHub Actions runs the tests before every deploy.
 
 ## Self-serve signup & going live
 

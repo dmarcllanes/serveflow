@@ -23,7 +23,7 @@ from fasthtml.common import Button, Div, Form, Img, Input, P, Script, Span, Styl
 import db
 from ui import peso
 
-log = logging.getLogger("biteflow.ai")
+log = logging.getLogger("serveflow.ai")
 
 LLM_BASE_URL = os.environ.get("LLM_BASE_URL") or "https://api.groq.com/openai/v1"
 LLM_API_KEY = os.environ.get("LLM_API_KEY", "")
@@ -493,7 +493,8 @@ def copilot(con, store: str, thread_id: str, message: str) -> tuple[str, list[di
 def execute_proposal(con, pid: int) -> str:
     """Run a pending proposal after the owner tapped Confirm. Returns a result message."""
     p = db.get_proposal(con, pid)
-    if not p or p["status"] != "pending":
+    # Claim it first, so a double tap (or two devices) can't run the same action twice.
+    if not p or not db.decide_proposal(con, pid, "confirmed", "Running…"):
         raise db.OrderError("This proposal was already handled.")
     pl = p["payload"]
     try:
@@ -514,11 +515,10 @@ def execute_proposal(con, pid: int) -> str:
             msg = f"Reset portions for {n} item(s) and cleared 86 flags."
         else:
             raise db.OrderError("Unknown proposal type.")
-    except db.OrderError as e:
-        db.decide_proposal(con, pid, "failed", str(e))
+    except Exception as e:
+        db.settle_proposal(con, pid, "failed", str(e) if isinstance(e, db.OrderError) else "Something went wrong.")
         raise
-    if not db.decide_proposal(con, pid, "confirmed", msg):
-        raise db.OrderError("This proposal was already handled.")
+    db.settle_proposal(con, pid, "confirmed", msg)
     return msg
 
 

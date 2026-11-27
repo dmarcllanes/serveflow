@@ -28,7 +28,17 @@ _login_fail: dict[str, list[float]] = {}
 
 
 def ctx(req):
-    return req.scope["store"], req.scope["con"]
+    # get_db is per-thread: call it here, on the handler's thread (see main.before)
+    store = req.scope["store"]
+    con = db.get_db(store)
+    db.housekeep(con, store)
+    return store, con
+
+
+def log_in(sess, store: str, con) -> None:
+    sess["admin"] = store
+    sess["admin_ver"] = db.session_version(con)
+    sess["copilot_id"] = "k_" + secrets.token_hex(8)
 
 
 def toast(msg: str):
@@ -97,8 +107,7 @@ def login(req, sess, password: str = ""):
         _login_fail[key] = recent + [time.time()]
         return ui.error_box("Wrong password.")
     _login_fail.pop(key, None)
-    sess["admin"] = store
-    sess["copilot_id"] = "k_" + secrets.token_hex(8)
+    log_in(sess, store, con)
     return Response("", headers={"HX-Redirect": "/admin/queue"})
 
 
@@ -108,8 +117,7 @@ def welcome(req, sess, t: str = ""):
     store, con = ctx(req)
     if not db.consume_login_token(con, t):
         return RedirectResponse("/admin/login", status_code=303)
-    sess["admin"] = store
-    sess["copilot_id"] = "k_" + secrets.token_hex(8)
+    log_in(sess, store, con)
     return RedirectResponse("/admin/start?new=1", status_code=303)
 
 
@@ -161,6 +169,7 @@ def start(req, new: int = 0):
 @ar("/logout", methods=["post"])
 def logout(sess):
     sess.pop("admin", None)
+    sess.pop("admin_ver", None)
     return RedirectResponse("/admin/login", status_code=303)
 
 
@@ -179,7 +188,7 @@ NEXT_LABEL = {"preparing": "Start preparing", "ready": "Mark ready", "out_for_de
               "completed": "Complete", "cancelled": "Cancel"}
 
 
-def order_card(o: dict):
+def order_card(o: dict, settings: dict | None = None):
     items = [Div(Span(f"{li['qty']}×", cls="font-extrabold w-8 shrink-0"),
                  Div(P(li["name"], cls="font-semibold"),
                      P(" · ".join(([li["variant_name"]] if li["variant_name"] else []) +
@@ -197,6 +206,9 @@ def order_card(o: dict):
         actions.append(P(f"{db.PAY_LABEL[o['payment_method']]} · {o['payment_status']}"
                          + (f" · ref {o['payment_ref']}" if o["payment_ref"] else ""),
                          cls="text-xs text-stone-600"))
+        if (due := db.payment_deadline(o, settings or {})):
+            actions.append(P(f"⏳ Cancels automatically at {due:%-I:%M %p} if no payment proof arrives",
+                             cls="text-xs font-semibold text-amber-800"))
         row = []
         if o["payment_status"] == "submitted":
             row.append(ui.btn("✓ Verify payment", kind="success", hx_post=f"/admin/orders/{o['id']}/verify",
@@ -237,7 +249,8 @@ def order_card(o: dict):
 
 def queue_list(con, tab: str):
     orders = db.list_orders(con, tab, limit=60)
-    return Div(*(order_card(o) for o in orders) if orders else [ui.empty("Nothing here right now.")],
+    s = db.get_settings(con)
+    return Div(*(order_card(o, s) for o in orders) if orders else [ui.empty("Nothing here right now.")],
                id="queue-list", cls="grid sm:grid-cols-2 gap-3 mt-3",
                hx_get=f"/admin/queue/list?tab={tab}", hx_trigger="every 10s", hx_swap="outerHTML")
 
@@ -285,8 +298,8 @@ def _order_action(req, fn, order_id: int, *args):
         o = fn(con, order_id, *args)
     except db.OrderError as e:
         o = db.get_order(con, order_id)
-        return (order_card(o) if o else Div()), toast(str(e))
-    return order_card(o), toast(f"{o['code']} → {db.STATUS_LABEL[o['status']]}")
+        return (order_card(o, db.get_settings(con)) if o else Div()), toast(str(e))
+    return order_card(o, db.get_settings(con)), toast(f"{o['code']} → {db.STATUS_LABEL[o['status']]}")
 
 
 @ar("/orders/{order_id}/advance", methods=["post"])
@@ -718,7 +731,7 @@ DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
 
 @ar("/website", methods=["get"])
-def website(req, saved: int = 0):
+def website(req, saved: int = 0, pw: str = ""):
     _, con = ctx(req)
     s = db.get_settings(con)
     hours = s.get("hours") or {}
@@ -775,6 +788,9 @@ def website(req, saved: int = 0):
         Div(ui.field("Prep time (min)", "prep_minutes", s.get("prep_minutes", 20), type="number", min="0", max="240"),
             ui.field("Slot interval (min)", "slot_minutes", s.get("slot_minutes", 30), type="number", min="10",
                      max="120"), cls="grid grid-cols-2 gap-3"),
+        ui.field("Time to pay for GCash / bank orders (min)", "payment_window_minutes", db.payment_window(s),
+                 type="number", min="5", max="1440",
+                 hint="Unpaid orders are cancelled after this, so their portions go back on the menu."),
         ui.btn("Save storefront", type="submit"),
         method="post", action="/admin/website", enctype="multipart/form-data", cls="grid gap-3")
     zone_list = [Div(Span(f"{z['name']} · {peso(z['fee_cents'])} · min {peso(z['min_order_cents'])} · "
@@ -788,16 +804,24 @@ def website(req, saved: int = 0):
                          ui.field("ETA min", "eta", "45", type="number", min="5"),
                          cls="grid grid-cols-2 sm:grid-cols-4 gap-2"),
                      ui.btn("Add zone", kind="ghost"), method="post", action="/admin/zones", cls="grid gap-2 mt-3")
-    pw_form = Form(ui.field("New admin password", "password", type="password", minlength="8", required=True,
-                            autocomplete="new-password"),
-                   ui.btn("Change password", kind="ghost"), method="post", action="/admin/password",
-                   cls="flex gap-2 items-end")
+    pw_form = Form(
+        P("✓ Password changed. Every other device has been logged out.", cls="text-sm font-semibold text-emerald-700")
+        if saved == 4 else None,
+        ui.error_box(PW_ERRORS.get(pw), "pw-error"),
+        ui.field("Current password", "current", type="password", required=True, autocomplete="current-password"),
+        ui.field("New password", "password", type="password", minlength="8", maxlength="128", required=True,
+                 autocomplete="new-password", hint="At least 8 characters."),
+        ui.field("Repeat new password", "confirm", type="password", minlength="8", maxlength="128", required=True,
+                 autocomplete="new-password"),
+        P("Changing it logs out every other phone or tablet, e.g. when a staff member leaves.",
+          cls="text-xs text-stone-500"),
+        ui.btn("Change password", kind="ghost"), method="post", action="/admin/password", cls="grid gap-3")
     return shell(req, "Website", "website", H2("Website editor", cls="text-xl font-extrabold mb-3"),
                  Div(ui.card(store_form, cls="p-4"),
                      Div(ui.card(home_form(s, saved == 2), cls="p-4"),
                          ui.card(chat_settings_form(s, saved == 3), cls="p-4"),
                          ui.card(H3("Delivery zones", cls="font-bold"), *zone_list, zone_form, cls="p-4"),
-                         ui.card(H3("Security", cls="font-bold mb-2"), pw_form, cls="p-4"), cls="grid gap-3 content-start"),
+                         ui.card(H3("Security", cls="font-bold mb-2"), pw_form, cls="p-4", id="security"), cls="grid gap-3 content-start"),
                      cls="grid md:grid-cols-2 gap-3"))
 
 
@@ -895,6 +919,7 @@ async def save_website(req):
         "hours": hours,
         "prep_minutes": clamp(form.get("prep_minutes"), 0, 240, 20),
         "slot_minutes": clamp(form.get("slot_minutes"), 10, 120, 30),
+        "payment_window_minutes": clamp(form.get("payment_window_minutes"), 5, 1440, 30),
     }
     for key in ("logo", "cover"):
         up = form.get(key)
@@ -928,14 +953,28 @@ def remove_zone(req, zone_id: int):
     return RedirectResponse("/admin/website", status_code=303)
 
 
+PW_ERRORS = {"current": "Your current password is wrong.", "match": "The two new passwords don't match.",
+             "same": "Choose a password different from the current one.",
+             "length": "The new password must be 8–128 characters."}
+
+
 @ar("/password", methods=["post"])
-def change_password(req, password: str = ""):
-    _, con = ctx(req)
+def change_password(req, sess, current: str = "", password: str = "", confirm: str = ""):
+    import time
+    store, con = ctx(req)
+    key = f"pw:{store}:{req.client.host if req.client else '?'}"
+    recent = [t for t in _login_fail.get(key, []) if time.time() - t < 900]
+    if len(recent) >= 8:
+        return RedirectResponse("/admin/website?pw=current#security", status_code=303)
     try:
-        db.set_admin_password(con, password)
-    except db.OrderError:
-        return RedirectResponse("/admin/website", status_code=303)
-    return RedirectResponse("/admin/website?saved=1", status_code=303)
+        sess["admin_ver"] = db.change_admin_password(con, current, password, confirm)
+    except db.OrderError as e:
+        msg = str(e)
+        if msg == PW_ERRORS["current"]:
+            _login_fail[key] = recent + [time.time()]
+        code = next((k for k, v in PW_ERRORS.items() if v == msg), "length")
+        return RedirectResponse(f"/admin/website?pw={code}#security", status_code=303)
+    return RedirectResponse("/admin/website?saved=4#security", status_code=303)
 
 
 # ---------------------------------------------------------------- QR codes (tables, posters, social)

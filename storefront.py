@@ -22,7 +22,11 @@ MAX_CART_LINES = 25
 
 
 def ctx(req):
-    return req.scope["store"], req.scope["con"]
+    # get_db is per-thread: call it here, on the handler's thread (see main.before)
+    store = req.scope["store"]
+    con = db.get_db(store)
+    db.housekeep(con, store)  # e.g. release portions held by unpaid orders
+    return store, con
 
 
 def img_url(name: str | None) -> str | None:
@@ -325,7 +329,7 @@ def menu(req, sess, table: str = "", open: int = 0):
         P(s.get("address", ""), cls="text-sm font-medium"),
         Div(*[Div(Span(d, cls="inline-block w-10 font-semibold"), h) for d, h in db.fmt_hours(s, friendly=True)],
             cls="mt-2 grid grid-cols-2 gap-x-4 text-xs text-stone-500"),
-        P("Powered by BiteFlow · 0% commission", cls="mt-4 text-[11px] text-stone-400"),
+        P("Powered by ServeFlow · 0% commission", cls="mt-4 text-[11px] text-stone-400"),
         cls="mx-4 mt-12 border-t border-stone-900/10 pt-6")
     preview = Div(Span("Preview", cls="font-bold"), " · only you can see this until your store goes live. ",
                   A("Back to admin", href="/admin/start", cls="font-semibold underline"),
@@ -872,6 +876,7 @@ def payment_panel(con, o: dict, s: dict, err: str | None = None):
     return Div(Div(
         H3("Complete your payment", cls="text-lg font-bold"),
         P("We'll start preparing as soon as it's confirmed.", cls="text-sm text-stone-500"),
+        deadline_note(o, s),
         rejected,
         Div(num(1), Div(P("Send ", Span(peso(o["total_cents"]), cls="font-extrabold"),
                           " via GCash" if gcash else " by bank transfer", cls="font-semibold"),
@@ -901,6 +906,15 @@ def payment_panel(con, o: dict, s: dict, err: str | None = None):
         cls="rounded-3xl bg-white p-5 ring-1 ring-stone-900/[.06]"), id="payment")
 
 
+def deadline_note(o: dict, s: dict):
+    due = db.payment_deadline(o, s)
+    if not due:
+        return None
+    return P("⏳ Please pay by ", Span(f"{due:%-I:%M %p}", cls="font-bold"),
+             ". After that the order is cancelled automatically.",
+             cls="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900")
+
+
 def order_status_card(o: dict):
     final = o["status"] in ("completed", "cancelled")
     pickup = o["mode"] == "pickup"
@@ -913,6 +927,8 @@ def order_status_card(o: dict):
         "completed": ("🎉", "Enjoy your meal!", "Salamat po! We hope to see you again."),
         "cancelled": ("✖️", "Order cancelled", "Contact the store if you have questions."),
     }[o["status"]]
+    if o["status"] == "cancelled" and o["events"] and o["events"][-1]["note"] == db.EXPIRED_NOTE:
+        hero = ("⌛", "Order cancelled", "We didn't receive your payment in time. You can place a new order anytime.")
     sched = None
     if o["scheduled_for"]:
         from datetime import datetime

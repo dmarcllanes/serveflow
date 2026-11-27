@@ -1,4 +1,4 @@
-# Deploying BiteFlow on AWS EC2
+# Deploying ServeFlow on AWS EC2
 
 One small EC2 instance runs everything: the app container (FastHTML/uvicorn, ~110 MB) and Caddy
 (HTTPS with on-demand certificates for every `<store>.BASE_DOMAIN`). All data — one SQLite file per

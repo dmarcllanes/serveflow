@@ -18,6 +18,8 @@ jobs:
       - uses: astral-sh/setup-uv@v5
       - name: Import check
         run: uv sync --frozen && uv run python -c "import main"
+      - name: Tests (a failure stops the deploy)
+        run: uv run pytest -q
 
       # The server's authorized_keys pins this key to a forced command, e.g.
       #   command="cd /opt/biteflow && git pull --ff-only && ./deploy.sh",no-port-forwarding,no-agent-forwarding,no-X11-forwarding,no-pty ssh-ed25519 AAAA... deploy@gha
