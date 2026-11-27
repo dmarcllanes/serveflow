@@ -38,6 +38,7 @@ with its own SQLite DB and 0% commission.
 ├── pyproject.toml / uv.lock
 ├── Dockerfile, docker-compose.yml, Caddyfile
 ├── deploy.sh                    # server: rebuild, prune, wait for health check
+├── backup.sh                    # server cron: daily verified copy of store DBs, uploads, .env
 ├── .github/workflows/deploy.yml # push to main/master → SSH (restricted key) → git pull + deploy.sh
 ├── main.py                      # app setup, tenancy, auth, route mounting
 ├── ui.py                        # shared FT components, design tokens, badges (86/Spicy/Best Seller), layout
