@@ -209,11 +209,48 @@ git pull && sudo ./deploy.sh                 # manual deploy
 Health check URL (e.g. for a free UptimeRobot monitor):
 `https://demo-resto.16-179-248-107.sslip.io/healthz`
 
-**Backups** (not set up yet) — everything that matters is `/opt/biteflow/data` (+ `.env`):
+### Backups
 
-- EC2 → **Elastic Block Store → Lifecycle Manager** → daily EBS snapshot policy for the instance's
-  volume (keep ~7), or
-- copy it off the box (SQLite in WAL mode: copy while idle, or use `sqlite3 <db> ".backup out.db"`).
+Everything that matters is `/opt/biteflow/data` (store DBs, uploads, `signups.jsonl`) plus `.env`.
+Two layers:
+
+**1. Daily copies on the server** (set up, Nov 2026). `backup.sh` copies every store DB with
+SQLite's online backup API (safe while orders come in), checks each copy with
+`PRAGMA integrity_check`, adds `uploads.tar.gz` and `.env`, and keeps the newest 14 in
+`/opt/serveflow-backups/<date>_<time>/` (owner-only permissions). Cron runs it at 3:15 AM Manila
+(19:15 UTC) and logs to `/opt/serveflow-backups/backup.log`:
+
+```bash
+# installed with: crontab -e  (user ubuntu)
+15 19 * * * /opt/biteflow/backup.sh >> /opt/serveflow-backups/backup.log 2>&1
+```
+
+```bash
+/opt/biteflow/backup.sh                        # back up now (writes to /opt/serveflow-backups)
+ls /opt/serveflow-backups                      # one folder per run; *_FAILED = that run failed
+tail /opt/serveflow-backups/backup.log         # last runs
+```
+
+These protect against a bad command, a bad deploy or a corrupted file. They do **not** survive
+losing the instance or its disk, which is what layer 2 is for.
+
+**2. Daily EBS snapshots (off the instance).** EC2 → **Elastic Block Store → Lifecycle Manager →
+Create lifecycle policy** → EBS snapshot policy, target the `serveflow` instance's volume, every
+24 hours at 20:00 UTC (after the cron copy), retain 7. Snapshots are incremental, so a few GB
+costs cents per month.
+
+**Restore one store** (e.g. `demo-resto` from a backup folder):
+
+```bash
+cd /opt/biteflow
+sudo docker compose stop app
+cp data/demo-resto.db data/demo-resto.db.before-restore      # keep the current one, just in case
+rm -f data/demo-resto.db-wal data/demo-resto.db-shm
+cp /opt/serveflow-backups/<folder>/demo-resto.db data/
+sudo docker compose start app
+```
+
+Uploads: `tar -xzf /opt/serveflow-backups/<folder>/uploads.tar.gz -C data`.
 
 ### Stopping and starting the instance (to save money)
 
