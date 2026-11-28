@@ -6,6 +6,24 @@
 	}
 }
 
+# Group Post Helper (~/Developer/fbgroups, /opt/grouppost on this server): a separate app on this Docker network.
+# A named host beats the catch-all below, and gets a normal certificate (not on-demand).
+# "posts" is in db.RESERVED_STORES, so no store can take this name. If the app is down, only this host shows 502.
+posts.{$BASE_DOMAIN} {
+	encode zstd gzip
+	request_body {
+		max_size 210MB
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+	reverse_proxy grouppost:5001
+}
+
 https:// {
 	tls {
 		on_demand

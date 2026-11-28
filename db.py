@@ -28,7 +28,7 @@ STORE_RE = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$")
 RESERVED_STORES = frozenset("""
 www admin api app apps mail smtp imap pop ftp static assets cdn media img images help support status blog docs
 dashboard signup login logout register account accounts billing pay payment payments biteflow serveflow demo test staging dev
-root ns ns1 ns2 mx email secure store stores shop owner kitchen order orders _tls_check healthz
+root ns ns1 ns2 mx email secure store stores shop owner kitchen order orders _tls_check healthz posts
 """.split())
 
 MODES = ("dine_in", "pickup", "delivery", "cod")
